@@ -1,33 +1,33 @@
 #!/usr/bin/env bash
 # =====================================================================
 # Ambiente CardDemo + GnuCOBOL — testado em Ubuntu 24.04 / GnuCOBOL 3.1.2
-# Uso:  bash setup.sh
+# Uso:  bash setup.sh   (execute de dentro do repositório clonado)
 # =====================================================================
 set -e
 
-LAB="${LAB:-$HOME/cobol-lab}"
-mkdir -p "$LAB"/{bin,data,src}
+# LAB aponta sempre para a raiz deste repositório, não para um caminho fixo.
+LAB="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$LAB"
 
-#echo ">>> 1/5 Instalando GnuCOBOL"
-#if ! command -v cobc >/dev/null 2>&1; then
-##  sudo apt-get update -qq
-#  sudo apt-get install -y gnucobol
-#fi
-#cobc --version | head -1
+echo ">>> 1/5 Instalando GnuCOBOL"
+if ! command -v cobc >/dev/null 2>&1; then
+  sudo apt-get update -qq
+  sudo apt-get install -y gnucobol
+fi
+cobc --version | head -1
 
-echo ">>> 2/5 Clonando CardDemo"
+echo ">>> 2/5 Preparando diretórios de trabalho (gerados, não versionados)"
+mkdir -p bin data
+
+echo ">>> 3/5 Clonando CardDemo"
 [ -d carddemo ] || git clone --depth 1 \
   https://github.com/aws-samples/aws-mainframe-modernization-carddemo.git carddemo
 
 CD_APP="$LAB/carddemo/app"
 
-echo ">>> 3/5 Compilando stubs (substituem Assembler/LE do z/OS)"
-# COBDATFT: o original é HLASM (app/asm/COBDATFT.asm) e não roda fora do z/OS.
+echo ">>> 4/5 Compilando stubs (substituem Assembler/LE do z/OS) e programas"
 cobc -m src/COBDATFT.cbl -I "$CD_APP/cpy" -o bin/COBDATFT.so
 cobc -m src/CEE3ABD.cbl                   -o bin/CEE3ABD.so
-
-echo ">>> 4/5 Compilando carregador e programa alvo"
 # ATENÇÃO: NÃO usar -free. O fonte tem numeração nas colunas 1-6 (formato fixo).
 cobc -x src/LOADACCT.cbl              -o bin/LOADACCT
 cobc -x "$CD_APP/cbl/CBACT01C.cbl" -I "$CD_APP/cpy" -o bin/CBACT01C
